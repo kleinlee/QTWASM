@@ -4,7 +4,7 @@ SOURCES += main.cpp \
     humanassets.cpp \
     mainwidget.cpp
 
-wasm:QMAKE_LFLAGS += -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"UTF16ToString\",\"stringToUTF16\",\"ccall\"]
+#wasm:QMAKE_LFLAGS += -s EXTRA_EXPORTED_RUNTIME_METHODS=[\"UTF16ToString\",\"stringToUTF16\",\"ccall\"]
 #wasm:QMAKE_LFLAGS += -s EXPORTED_FUNCTIONS=[\"_malloc\",\"_free\"]
 
 HEADERS += \
