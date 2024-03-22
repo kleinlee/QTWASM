@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <!--Set visual viewport size for mobile devices to the device size,
+        witch results in a scale of 1 and a 1:1 mapping between CSS pixels
+        and Qt device independent pixels. -->
+    <meta name="viewport" content="width=device-width, height=device-height, user-scalable=0"/>
+
+    <title>QTWASM</title>
+    <style>
+      /* Make the html body cover the entire (visual) viewport with no scroll bars. */
+      html, body { padding: 0; margin: 0; overflow: hidden; height: 100% }
+      #screen { width: 100%; height: 80%; }
+    </style>
+  </head>
+  <body onload="init()">
+    
+    <figure style="overflow:visible;" id="qtspinner">
+      <center style="margin-top:1.5em; line-height:150%">
+        <img src="qtlogo.svg" width="320" height="200" style="display:block"></img>
+        <strong>Qt for WebAssembly: QTWASM</strong>
+        <div id="qtstatus"></div>
+        <noscript>JavaScript is disabled. Please enable JavaScript to use this application.</noscript>
+      </center>
+    </figure>
+    <div id="screen"></div>
+
+    <script type="text/javascript">
+        async function init()
+        {
+            const spinner = document.querySelector('#qtspinner');
+            const screen = document.querySelector('#screen');
+            const status = document.querySelector('#qtstatus');
+
+            const showUi = (ui) => {
+                [spinner, screen].forEach(element => element.style.display = 'none');
+                if (screen === ui)
+                    screen.style.position = 'default';
+                ui.style.display = 'block';
+            }
+
+            try {
+                showUi(spinner);
+                status.innerHTML = 'Loading...';
+
+                const instance = await qtLoad({
+                    qt: {
+                        onLoaded: () => showUi(screen),
+                        onExit: exitData =>
+                        {
+                            status.innerHTML = 'Application exit';
+                            status.innerHTML +=
+                                exitData.code !== undefined ? ` with code ${exitData.code}` : '';
+                            status.innerHTML +=
+                                exitData.text !== undefined ? ` (${exitData.text})` : '';
+                            showUi(spinner);
+                        },
+                        entryFunction: window.createQtAppInstance,
+                        containerElements: [screen],
+                        
+                    }
+                });
+            } catch (e) {
+                console.error(e);
+                console.error(e.stack);
+            }
+        }
+    </script>
+    <script src="QTWASM.js"></script>
+    <script type="text/javascript" src="qtloader.js"></script>
+    
+    <!-- 创建一个文件输入元素，允许用户选择文件 -->
+    <input type="file" id="image-input" accept="image/*">
+
+    <!-- 预览图片的区域 -->
+    <div id="image-preview">
+        <p>选择图片后，这里将显示图片预览。</p>
+    </div>
+
+    <script>
+        // 获取文件输入元素和预览区域
+        const input = document.getElementById('image-input');
+        const preview = document.getElementById('image-preview');
+
+        // 监听文件选择的变化
+        input.addEventListener('change', function() {
+            var file = this.files[0]; // 获取选择的文件对象
+            if (file) {
+                // 创建一个URL对象来读取文件内容
+                var reader = new FileReader();
+                
+                // // 当文件读取完成后触发
+                // reader.onload = function(e) {
+                //   console.log("XXXXX");
+                //   var result=Module.ccall("setWidgetText","number",["string","number", "number"],[input.value, img.d])
+                //     // 创建一个img元素来显示图片
+                //     var img = document.createElement('img');
+                //     img.src = e.target.result; // 设置图片的src属性为读取的文件内容
+                //     preview.innerHTML = ''; // 清空预览区域的内容
+                //     preview.appendChild(img); // 将图片添加到预览区域
+                // };
+                
+                // reader.readAsDataURL(file); // 读取文件内容
+
+                // 当文件读取完成后触发
+                reader.onload = function(e) {
+                    // 这里你可以访问文件的内容
+                    const buffer = e.target.result;
+                    const view = new Uint8Array(buffer); // 创建一个视图来操作ArrayBuffer
+                    // 准备要传递给WebAssembly函数的参数
+                    // const arrayBufferPtr = Module._malloc(buffer.byteLength); // 在WebAssembly堆上分配空间
+
+                    const arrayBufferPtr = Module._mallocArray(buffer.byteLength)
+
+                    Module.HEAPU8.set(view, arrayBufferPtr); // 将ArrayBuffer的数据复制到WebAssembly堆上
+                    // 调用WebAssembly模块中的C函数
+                    // processArrayBuffer函数的签名可能是这样的：void processArrayBuffer(ArrayBuffer buffer, int length)
+                    console.log("buffer.byteLength", buffer.byteLength)
+                    Module.ccall(
+                      'processFile', // WebAssembly模块中导出的C函数名
+                      'void', // 返回类型
+                      ['number', 'number'], // 参数类型数组
+                      [arrayBufferPtr, buffer.byteLength] // 参数值数组
+                    );
+                    // 函数调用完成后，记得释放在WebAssembly堆上分配的空间
+                    // Module._free(arrayBufferPtr);
+                };
+                
+                // 以文本形式读取文件内容
+                reader.readAsArrayBuffer(file);
+            }
+        });
+    </script>
+  </body>
+</html>
